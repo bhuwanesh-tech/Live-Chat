@@ -12,33 +12,49 @@
 <script type='text/javascript' src='https://service.force.com/embeddedservice/5.0/esw.min.js'></script>
 <script type='text/javascript'>
     var initESW = function(gslbBaseURL) {
-        embedded_svc.settings.displayHelpButton = true; //Or false
-        embedded_svc.settings.language = ''; //For example, enter 'en' or 'en-US'
+        console.log("%c Embedded Service Chat – Initialization started", "color:green; font-weight:bold");
 
-        //embedded_svc.settings.defaultMinimizedText = '...'; //(Defaults to Chat with an Expert)
-        //embedded_svc.settings.disabledMinimizedText = '...'; //(Defaults to Agent Offline)
-
-        //embedded_svc.settings.loadingText = ''; //(Defaults to Loading)
-        //embedded_svc.settings.storageDomain = 'yourdomain.com'; //(Sets the domain for your deployment so that visitors can navigate subdomains during a chat session)
-
-        // Settings for Chat
-        //embedded_svc.settings.directToButtonRouting = function(prechatFormData) {
-            // Dynamically changes the button ID based on what the visitor enters in the pre-chat form.
-            // Returns a valid button ID.
-        //};
-        //embedded_svc.settings.prepopulatedPrechatFields = {}; //Sets the auto-population of pre-chat form fields
-        //embedded_svc.settings.fallbackRouting = []; //An array of button IDs, user IDs, or userId_buttonId
-        //embedded_svc.settings.offlineSupportMinimizedText = '...'; //(Defaults to Contact Us)
-
+        // === Your original settings (unchanged) ===
+        embedded_svc.settings.displayHelpButton = true;
+        embedded_svc.settings.language = '';
         embedded_svc.settings.enabledFeatures = ['LiveAgent'];
         embedded_svc.settings.entryFeature = 'LiveAgent';
+
+        // === Add these listeners – THIS IS THE IMPORTANT PART ===
+        // They will tell you exactly what fails
+        embedded_svc.onHelpButtonLoad = function() {
+            console.log("%c Help Button loaded successfully", "color:green; font-weight:bold");
+        };
+
+        embedded_svc.onAvailability = function(availabilityResponse) {
+            console.log("%c Availability check response:", "color:orange; font-weight:bold", availabilityResponse);
+            if (availabilityResponse && availabilityResponse.results && availabilityResponse.results.length > 0) {
+                var isAvailable = availabilityResponse.results[0].isAvailable;
+                console.log(isAvailable 
+                    ? "%c AGENT IS AVAILABLE – Chat should show ONLINE" 
+                    : "%c NO AGENT AVAILABLE – Showing Offline", 
+                    isAvailable ? "color:green" : "color:red; font-weight:bold");
+            } else {
+                console.error("%c Availability returned empty or invalid response", "color:red; font-weight:bold", availabilityResponse);
+            }
+        };
+
+        embedded_svc.onInitError = function(error) {
+            console.error("%c Embedded Service INIT FAILED", "color:red; font-weight:bold", error);
+        };
+
+        embedded_svc.onSettingsLoadError = function(error) {
+            console.error("%c Settings load failed (CORS, wrong org, etc.)", "color:red; font-weight:bold", error);
+        };
+
+        // === End of error handling ===
 
         embedded_svc.init(
             'https://orgfarm-f3fc123aaa-dev-ed.develop.my.salesforce.com',
             'https://orgfarm-f3fc123aaa-dev-ed.develop.my.site.com/',
             gslbBaseURL,
-            '00Dg5000000zYzs',
-            'Tour_Chat_Group',
+            '00Dg5000000zYzs',                         // Org ID
+            'Tour_Chat_Group',                         // Deployment Name
             {
                 baseLiveAgentContentURL: 'https://c.la11-core1.sfdc-y37hzm.salesforceliveagent.com/content',
                 deploymentId: '572g50000014qDx',
@@ -50,14 +66,21 @@
         );
     };
 
+    // === Final loader with extra safety ===
     if (!window.embedded_svc) {
+        console.log("Loading ESW script from your org...");
         var s = document.createElement('script');
-        s.setAttribute('src', 'https://orgfarm-f3fc123aaa-dev-ed.develop.my.salesforce.com/embeddedservice/5.0/esw.min.js');
+        s.src = 'https://orgfarm-f3fc123aaa-dev-ed.develop.my.salesforce.com/embeddedservice/5.0/esw.min.js';
         s.onload = function() {
+            console.log("ESW script loaded – calling initESW()");
             initESW(null);
+        };
+        s.onerror = function(e) {
+            console.error("%c FAILED to load esw.min.js – check CORS / network", "color:red; font-weight:bold", e);
         };
         document.body.appendChild(s);
     } else {
+        console.log("ESW already present – initializing directly");
         initESW('https://service.force.com');
     }
 </script>
